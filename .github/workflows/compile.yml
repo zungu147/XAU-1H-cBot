@@ -1,35 +1,40 @@
 name: Compile cBot
-on: [push, workflow_dispatch]
+
+on:
+  push:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
 
-    - name: Initialize Project
-      run: |
-        dotnet new classlib -n GoldStraddleBot --force
-        cd GoldStraddleBot
-        dotnet add package cTrader.Automate
+      - name: Create Project
+        run: |
+          dotnet new classlib -n GoldStraddleBot --framework net8.0 --force
+          cd GoldStraddleBot
+          dotnet add package cTrader.Automate
 
-    - name: Move Code to Project
-      run: |
-        Move-Item -Path GoldStraddleBot.cs -Destination GoldStraddleBot/Class1.cs -Force
+      - name: Copy cBot Source
+        shell: pwsh
+        run: |
+          Copy-Item GoldStraddleBot.cs GoldStraddleBot/Class1.cs -Force
 
-    - name: Build Algo File
-      run: |
-        cd GoldStraddleBot
-        dotnet build --configuration Release
+      - name: Build
+        run: |
+          cd GoldStraddleBot
+          dotnet build -c Release
 
-    - name: Upload Finished Bot
-      uses: actions/upload-artifact@v4
-      with:
-        name: Finished-cBot
-        path: GoldStraddleBot/bin/Release/net8.0/GoldStraddleBot.dll
+      - name: Upload DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finished-cBot
+          path: GoldStraddleBot/bin/Release/net8.0/GoldStraddleBot.dll
