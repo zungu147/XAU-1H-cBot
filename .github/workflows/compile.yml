@@ -1,0 +1,27 @@
+name: Compile cBot
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-net@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Add cTrader Package
+      run: dotnet add package cTrader.Automate
+
+    - name: Build Algo File
+      run: dotnet build --configuration Release
+
+    - name: Upload Finished Bot
+      uses: actions/upload-artifact@v4
+      with:
+        name: Finished-cBot
+        path: bin/Release/**/*.dll
+        
