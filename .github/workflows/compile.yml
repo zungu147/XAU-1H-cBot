@@ -9,19 +9,27 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup .NET
-      uses: actions/setup-net@v4
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
 
-    - name: Add cTrader Package
-      run: dotnet add package cTrader.Automate
+    - name: Initialize Project
+      run: |
+        dotnet new classlib -n GoldStraddleBot --force
+        cd GoldStraddleBot
+        dotnet add package cTrader.Automate
+
+    - name: Move Code to Project
+      run: |
+        Move-Item -Path GoldStraddleBot.cs -Destination GoldStraddleBot/Class1.cs -Force
 
     - name: Build Algo File
-      run: dotnet build --configuration Release
+      run: |
+        cd GoldStraddleBot
+        dotnet build --configuration Release
 
     - name: Upload Finished Bot
       uses: actions/upload-artifact@v4
       with:
         name: Finished-cBot
-        path: bin/Release/**/*.dll
-        
+        path: GoldStraddleBot/bin/Release/net8.0/GoldStraddleBot.dll
