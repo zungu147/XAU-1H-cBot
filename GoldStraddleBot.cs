@@ -5,7 +5,6 @@ using cAlgo.API.Internals;
 
 namespace cAlgo.Robots
 {
-    // Changed TimeZone to the official standard "E. Africa Standard Time"
     [Robot(TimeZone = "E. Africa Standard Time", AccessRights = AccessRights.None)]
     public class GoldStraddleBot : Robot
     {
@@ -16,7 +15,8 @@ namespace cAlgo.Robots
 
         protected override void OnStart()
         {
-            Timer.Start(0.5);
+            // Fixed: Pass TimeSpan instead of double
+            Timer.Start(TimeSpan.FromMilliseconds(500));
         }
 
         protected override void OnTimer()
