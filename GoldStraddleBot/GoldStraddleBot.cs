@@ -7,7 +7,7 @@ namespace cAlgo.Robots
     [Robot(TimeZone = TimeZones.EAfricaStandardTime, AccessRights = AccessRights.None)]
     public class GoldStraddleBot : Robot
     {
-        private const string BotVersion = "v2.0-beta2";
+        private const string BotVersion = "v2.0-rc1";
 
 
         #region Parameters
@@ -74,14 +74,13 @@ namespace cAlgo.Robots
         private DateTime _currentDate;
 
 
+        private int _tradeNumber;
+
+
         private int _totalExecutions;
         private int _successfulBuys;
         private int _successfulSells;
         private int _failedOrders;
-
-
-        private double _totalExecutionGap;
-
 
         #endregion
 
@@ -93,15 +92,11 @@ namespace cAlgo.Robots
         {
             _currentDate = Server.Time.Date;
 
-
             ValidateParameters();
-
 
             Timer.Start(TimeSpan.FromMilliseconds(200));
 
-
             PrintStartupReport();
-
 
             LogInfo($"{BotVersion} Started");
         }
@@ -116,7 +111,6 @@ namespace cAlgo.Robots
         {
             ResetDaily();
 
-
             if (!IsTradingDay())
                 return;
 
@@ -126,7 +120,7 @@ namespace cAlgo.Robots
             CheckTradeTime(_time3, ref _executedTime3, "Time 3");
 
 
-            Debug($"Time: {Server.Time:HH:mm:ss.fff}");
+            Debug($"Time {Server.Time:HH:mm:ss.fff}");
         }
 
         #endregion
@@ -149,8 +143,6 @@ namespace cAlgo.Robots
             {
                 executed = true;
 
-                LogInfo($"{name} triggered");
-
                 ExecuteStraddle(name);
             }
         }
@@ -163,9 +155,20 @@ namespace cAlgo.Robots
 
         private void ExecuteStraddle(string trigger)
         {
+            _tradeNumber++;
+
+
+            string tradeId =
+                $"GSB-{Server.Time:yyyyMMdd}-{_tradeNumber:D3}";
+
+
+            LogInfo($"Trade ID: {tradeId}");
+            LogInfo($"{trigger} triggered");
+
+
             if (Positions.Count >= MaximumOpenPositions)
             {
-                LogError("Maximum open positions reached. Trade skipped.");
+                LogError("Maximum open positions reached");
                 return;
             }
 
@@ -174,7 +177,7 @@ namespace cAlgo.Robots
                 Symbol.QuantityToVolumeInUnits(Volume);
 
 
-            Stopwatch stopwatch = Stopwatch.StartNew();
+            Stopwatch timer = Stopwatch.StartNew();
 
 
             var buy =
@@ -182,12 +185,13 @@ namespace cAlgo.Robots
                     TradeType.Buy,
                     SymbolName,
                     volumeUnits,
-                    $"{BotVersion}_BUY",
+                    $"{BotVersion}_{tradeId}_BUY",
                     StopLoss,
                     TakeProfit);
 
 
-            double buyTime = stopwatch.Elapsed.TotalMilliseconds;
+            double buyTime =
+                timer.Elapsed.TotalMilliseconds;
 
 
             var sell =
@@ -195,15 +199,16 @@ namespace cAlgo.Robots
                     TradeType.Sell,
                     SymbolName,
                     volumeUnits,
-                    $"{BotVersion}_SELL",
+                    $"{BotVersion}_{tradeId}_SELL",
                     StopLoss,
                     TakeProfit);
 
 
-            double sellTime = stopwatch.Elapsed.TotalMilliseconds;
+            double sellTime =
+                timer.Elapsed.TotalMilliseconds;
 
 
-            stopwatch.Stop();
+            timer.Stop();
 
 
             double gap = sellTime - buyTime;
@@ -217,16 +222,14 @@ namespace cAlgo.Robots
                 _successfulBuys++;
 
                 LogSuccess(
-                    $"BUY opened | ID {buy.Position.Id} | Price {buy.Position.EntryPrice}");
+                    $"{tradeId} BUY opened | Price {buy.Position.EntryPrice}");
             }
             else
             {
                 _failedOrders++;
 
-                LogError(
-                    $"BUY failed: {buy.Error}");
+                LogError($"BUY failed: {buy.Error}");
             }
-
 
 
             if (sell.IsSuccessful)
@@ -234,22 +237,17 @@ namespace cAlgo.Robots
                 _successfulSells++;
 
                 LogSuccess(
-                    $"SELL opened | ID {sell.Position.Id} | Price {sell.Position.EntryPrice}");
+                    $"{tradeId} SELL opened | Price {sell.Position.EntryPrice}");
             }
             else
             {
                 _failedOrders++;
 
-                LogError(
-                    $"SELL failed: {sell.Error}");
+                LogError($"SELL failed: {sell.Error}");
             }
 
 
-            _totalExecutionGap += gap;
-
-
-            LogInfo(
-                $"{trigger} completed | Execution gap {gap:F2} ms");
+            LogInfo($"Execution gap: {gap:F2} ms");
         }
 
         #endregion
@@ -307,12 +305,7 @@ namespace cAlgo.Robots
             _executedTime2 = false;
             _executedTime3 = false;
 
-
-            _totalExecutions = 0;
-            _successfulBuys = 0;
-            _successfulSells = 0;
-            _failedOrders = 0;
-            _totalExecutionGap = 0;
+            _tradeNumber = 0;
         }
 
         #endregion
