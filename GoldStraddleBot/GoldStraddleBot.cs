@@ -6,7 +6,10 @@ namespace cAlgo.Robots
     [Robot(TimeZone = TimeZones.EAfricaStandardTime, AccessRights = AccessRights.None)]
     public class GoldStraddleBot : Robot
     {
-        [Parameter("Volume (Lots)", DefaultValue = 0.01, MinValue = 0.01, Step = 0.01)]
+
+        #region Parameters
+
+        [Parameter("Volume (Lots)", DefaultValue = 0.01)]
         public double Volume { get; set; }
 
         [Parameter("Stop Loss (Pips)", DefaultValue = 100)]
@@ -15,61 +18,115 @@ namespace cAlgo.Robots
         [Parameter("Take Profit (Pips)", DefaultValue = 400)]
         public double TakeProfit { get; set; }
 
-        [Parameter("Execution Hour", DefaultValue = 14)]
-        public int ExecutionHour { get; set; }
 
-        [Parameter("Execution Minute", DefaultValue = 59)]
-        public int ExecutionMinute { get; set; }
+        [Parameter("Trade Time 1 (HH:mm:ss)", DefaultValue = "09:30:00")]
+        public string TradeTime1 { get; set; }
 
-        [Parameter("Execution Second", DefaultValue = 57)]
-        public int ExecutionSecond { get; set; }
 
-        private bool _executed;
+        [Parameter("Trade Time 2 (HH:mm:ss)", DefaultValue = "14:59:57")]
+        public string TradeTime2 { get; set; }
+
+
+        [Parameter("Trade Time 3 (HH:mm:ss)", DefaultValue = "21:00:00")]
+        public string TradeTime3 { get; set; }
+
+
+        [Parameter("Trade Monday", DefaultValue = true)]
+        public bool TradeMonday { get; set; }
+
+        [Parameter("Trade Tuesday", DefaultValue = true)]
+        public bool TradeTuesday { get; set; }
+
+        [Parameter("Trade Wednesday", DefaultValue = true)]
+        public bool TradeWednesday { get; set; }
+
+        [Parameter("Trade Thursday", DefaultValue = true)]
+        public bool TradeThursday { get; set; }
+
+        [Parameter("Trade Friday", DefaultValue = true)]
+        public bool TradeFriday { get; set; }
+
+
+        [Parameter("Debug Mode", DefaultValue = false)]
+        public bool DebugMode { get; set; }
+
+        #endregion
+
+
+        #region Variables
+
+        private TimeSpan _time1;
+        private TimeSpan _time2;
+        private TimeSpan _time3;
+
+        #endregion
+
+
+        #region OnStart
 
         protected override void OnStart()
         {
+            LogInfo("GoldStraddleBot v2.0-alpha1 Started");
+
+            ValidateParameters();
+
             Timer.Start(TimeSpan.FromMilliseconds(500));
-            Print("GoldStraddleBot started.");
         }
+
+        #endregion
+
+
+        #region Timer
 
         protected override void OnTimer()
         {
-            if (_executed)
-                return;
-
-            DateTime now = Server.Time;
-
-            if (now.Hour == ExecutionHour &&
-                now.Minute == ExecutionMinute &&
-                now.Second >= ExecutionSecond)
-            {
-                ExecuteOrders();
-                _executed = true;
-                Timer.Stop();
-            }
+            Debug($"Server Time: {Server.Time}");
         }
 
-        private void ExecuteOrders()
+        #endregion
+
+
+        #region Validation
+
+        private void ValidateParameters()
         {
-            double volumeInUnits = Symbol.QuantityToVolumeInUnits(Volume);
+            if (!TimeSpan.TryParse(TradeTime1, out _time1))
+                LogError("Trade Time 1 format invalid");
 
-            ExecuteMarketOrder(
-                TradeType.Buy,
-                SymbolName,
-                volumeInUnits,
-                "GoldStraddle_Buy",
-                StopLoss,
-                TakeProfit);
+            if (!TimeSpan.TryParse(TradeTime2, out _time2))
+                LogError("Trade Time 2 format invalid");
 
-            ExecuteMarketOrder(
-                TradeType.Sell,
-                SymbolName,
-                volumeInUnits,
-                "GoldStraddle_Sell",
-                StopLoss,
-                TakeProfit);
+            if (!TimeSpan.TryParse(TradeTime3, out _time3))
+                LogError("Trade Time 3 format invalid");
 
-            Print($"Orders executed successfully at {Server.Time:HH:mm:ss}");
+
+            LogInfo("Parameters validated");
         }
+
+        #endregion
+
+
+        #region Logging
+
+        private void LogInfo(string message)
+        {
+            Print("[INFO] " + message);
+        }
+
+
+        private void LogError(string message)
+        {
+            Print("[ERROR] " + message);
+        }
+
+
+        private void Debug(string message)
+        {
+            if (DebugMode)
+                Print("[DEBUG] " + message);
+        }
+
+        #endregion
+
     }
 }
