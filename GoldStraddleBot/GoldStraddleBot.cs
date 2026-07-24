@@ -7,8 +7,7 @@ namespace cAlgo.Robots
     [Robot(TimeZone = TimeZones.EAfricaStandardTime, AccessRights = AccessRights.None)]
     public class GoldStraddleBot : Robot
     {
-
-        private const string BotVersion = "v2.0-beta1";
+        private const string BotVersion = "v2.0-beta2";
 
 
         #region Parameters
@@ -16,10 +15,8 @@ namespace cAlgo.Robots
         [Parameter("Volume (Lots)", DefaultValue = 0.01)]
         public double Volume { get; set; }
 
-
         [Parameter("Stop Loss (Pips)", DefaultValue = 100)]
         public double StopLoss { get; set; }
-
 
         [Parameter("Take Profit (Pips)", DefaultValue = 400)]
         public double TakeProfit { get; set; }
@@ -28,10 +25,8 @@ namespace cAlgo.Robots
         [Parameter("Trade Time 1 (HH:mm:ss)", DefaultValue = "09:30:00")]
         public string TradeTime1 { get; set; }
 
-
         [Parameter("Trade Time 2 (HH:mm:ss)", DefaultValue = "14:59:57")]
         public string TradeTime2 { get; set; }
-
 
         [Parameter("Trade Time 3 (HH:mm:ss)", DefaultValue = "21:00:00")]
         public string TradeTime3 { get; set; }
@@ -40,21 +35,21 @@ namespace cAlgo.Robots
         [Parameter("Trade Monday", DefaultValue = true)]
         public bool TradeMonday { get; set; }
 
-
         [Parameter("Trade Tuesday", DefaultValue = true)]
         public bool TradeTuesday { get; set; }
-
 
         [Parameter("Trade Wednesday", DefaultValue = true)]
         public bool TradeWednesday { get; set; }
 
-
         [Parameter("Trade Thursday", DefaultValue = true)]
         public bool TradeThursday { get; set; }
 
-
         [Parameter("Trade Friday", DefaultValue = true)]
         public bool TradeFriday { get; set; }
+
+
+        [Parameter("Maximum Open Positions", DefaultValue = 6)]
+        public int MaximumOpenPositions { get; set; }
 
 
         [Parameter("Debug Mode", DefaultValue = false)]
@@ -86,8 +81,6 @@ namespace cAlgo.Robots
 
 
         private double _totalExecutionGap;
-        private double _fastestGap = double.MaxValue;
-        private double _slowestGap;
 
 
         #endregion
@@ -107,11 +100,10 @@ namespace cAlgo.Robots
             Timer.Start(TimeSpan.FromMilliseconds(200));
 
 
+            PrintStartupReport();
+
+
             LogInfo($"{BotVersion} Started");
-            LogInfo($"Symbol: {SymbolName}");
-            LogInfo($"Volume: {Volume}");
-            LogInfo($"SL: {StopLoss}");
-            LogInfo($"TP: {TakeProfit}");
         }
 
         #endregion
@@ -134,7 +126,7 @@ namespace cAlgo.Robots
             CheckTradeTime(_time3, ref _executedTime3, "Time 3");
 
 
-            Debug($"Time {Server.Time:HH:mm:ss.fff}");
+            Debug($"Time: {Server.Time:HH:mm:ss.fff}");
         }
 
         #endregion
@@ -152,17 +144,12 @@ namespace cAlgo.Robots
             TimeSpan now = Server.Time.TimeOfDay;
 
 
-            TimeSpan windowEnd =
-                tradeTime.Add(TimeSpan.FromSeconds(30));
-
-
-            if (now >= tradeTime && now <= windowEnd)
+            if (now >= tradeTime &&
+                now <= tradeTime.Add(TimeSpan.FromSeconds(30)))
             {
                 executed = true;
 
-
                 LogInfo($"{name} triggered");
-
 
                 ExecuteStraddle(name);
             }
@@ -176,9 +163,9 @@ namespace cAlgo.Robots
 
         private void ExecuteStraddle(string trigger)
         {
-            if (Volume <= 0 || StopLoss <= 0 || TakeProfit <= 0)
+            if (Positions.Count >= MaximumOpenPositions)
             {
-                LogError("Invalid trading parameters");
+                LogError("Maximum open positions reached. Trade skipped.");
                 return;
             }
 
@@ -187,7 +174,7 @@ namespace cAlgo.Robots
                 Symbol.QuantityToVolumeInUnits(Volume);
 
 
-            Stopwatch timer = Stopwatch.StartNew();
+            Stopwatch stopwatch = Stopwatch.StartNew();
 
 
             var buy =
@@ -200,7 +187,7 @@ namespace cAlgo.Robots
                     TakeProfit);
 
 
-            double buyMilliseconds = timer.Elapsed.TotalMilliseconds;
+            double buyTime = stopwatch.Elapsed.TotalMilliseconds;
 
 
             var sell =
@@ -213,56 +200,56 @@ namespace cAlgo.Robots
                     TakeProfit);
 
 
-            double sellMilliseconds = timer.Elapsed.TotalMilliseconds;
+            double sellTime = stopwatch.Elapsed.TotalMilliseconds;
 
 
-            timer.Stop();
+            stopwatch.Stop();
 
 
-            double executionGap =
-                sellMilliseconds - buyMilliseconds;
+            double gap = sellTime - buyTime;
 
 
             _totalExecutions++;
 
 
             if (buy.IsSuccessful)
+            {
                 _successfulBuys++;
+
+                LogSuccess(
+                    $"BUY opened | ID {buy.Position.Id} | Price {buy.Position.EntryPrice}");
+            }
             else
             {
                 _failedOrders++;
-                LogError("BUY failed: " + buy.Error);
+
+                LogError(
+                    $"BUY failed: {buy.Error}");
             }
+
 
 
             if (sell.IsSuccessful)
+            {
                 _successfulSells++;
+
+                LogSuccess(
+                    $"SELL opened | ID {sell.Position.Id} | Price {sell.Position.EntryPrice}");
+            }
             else
             {
                 _failedOrders++;
-                LogError("SELL failed: " + sell.Error);
+
+                LogError(
+                    $"SELL failed: {sell.Error}");
             }
 
 
-            _totalExecutionGap += executionGap;
+            _totalExecutionGap += gap;
 
 
-            if (executionGap < _fastestGap)
-                _fastestGap = executionGap;
-
-
-            if (executionGap > _slowestGap)
-                _slowestGap = executionGap;
-
-
-
-            if (buy.IsSuccessful && sell.IsSuccessful)
-            {
-                LogSuccess(
-                    $"{trigger} completed | " +
-                    $"BUY OK | SELL OK | " +
-                    $"Gap {executionGap:F2} ms");
-            }
+            LogInfo(
+                $"{trigger} completed | Execution gap {gap:F2} ms");
         }
 
         #endregion
@@ -276,7 +263,6 @@ namespace cAlgo.Robots
             TimeSpan.TryParse(TradeTime1, out _time1);
             TimeSpan.TryParse(TradeTime2, out _time2);
             TimeSpan.TryParse(TradeTime3, out _time3);
-
 
             LogInfo("Parameters validated");
         }
@@ -317,7 +303,6 @@ namespace cAlgo.Robots
 
             _currentDate = Server.Time.Date;
 
-
             _executedTime1 = false;
             _executedTime2 = false;
             _executedTime3 = false;
@@ -327,11 +312,37 @@ namespace cAlgo.Robots
             _successfulBuys = 0;
             _successfulSells = 0;
             _failedOrders = 0;
-
-
             _totalExecutionGap = 0;
-            _fastestGap = double.MaxValue;
-            _slowestGap = 0;
+        }
+
+        #endregion
+
+
+
+        #region Reporting
+
+        private void PrintStartupReport()
+        {
+            Print("========================");
+            Print(BotVersion);
+            Print($"Symbol: {SymbolName}");
+            Print($"Volume: {Volume}");
+            Print($"SL: {StopLoss}");
+            Print($"TP: {TakeProfit}");
+            Print($"Existing Positions: {Positions.Count}");
+            Print("========================");
+        }
+
+
+        private void PrintDailySummary()
+        {
+            Print("========================");
+            Print("DAILY SUMMARY");
+            Print($"Executions: {_totalExecutions}");
+            Print($"BUY: {_successfulBuys}");
+            Print($"SELL: {_successfulSells}");
+            Print($"Errors: {_failedOrders}");
+            Print("========================");
         }
 
         #endregion
@@ -340,49 +351,28 @@ namespace cAlgo.Robots
 
         #region Logging
 
-        private void LogInfo(string message)
+        private void LogInfo(string msg)
         {
-            Print("[INFO] " + message);
+            Print("[INFO] " + msg);
         }
 
 
-        private void LogSuccess(string message)
+        private void LogSuccess(string msg)
         {
-            Print("[SUCCESS] " + message);
+            Print("[SUCCESS] " + msg);
         }
 
 
-        private void LogError(string message)
+        private void LogError(string msg)
         {
-            Print("[ERROR] " + message);
+            Print("[ERROR] " + msg);
         }
 
 
-        private void Debug(string message)
+        private void Debug(string msg)
         {
             if (DebugMode)
-                Print("[DEBUG] " + message);
-        }
-
-
-        private void PrintDailySummary()
-        {
-            double average =
-                _totalExecutions > 0
-                ? _totalExecutionGap / _totalExecutions
-                : 0;
-
-
-            Print("====================");
-            Print($"{BotVersion} DAILY SUMMARY");
-            Print($"Executions: {_totalExecutions}");
-            Print($"BUY Success: {_successfulBuys}");
-            Print($"SELL Success: {_successfulSells}");
-            Print($"Errors: {_failedOrders}");
-            Print($"Average Gap: {average:F2} ms");
-            Print($"Fastest Gap: {_fastestGap:F2} ms");
-            Print($"Slowest Gap: {_slowestGap:F2} ms");
-            Print("====================");
+                Print("[DEBUG] " + msg);
         }
 
         #endregion
