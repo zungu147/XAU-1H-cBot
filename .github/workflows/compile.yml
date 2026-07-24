@@ -1,7 +1,10 @@
-name: Compile cBot
+name: Build GoldStraddleBot
 
 on:
   push:
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -9,32 +12,22 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET 6 SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 6.0.x
 
-      - name: Create Project
-        run: |
-          dotnet new classlib -n GoldStraddleBot --framework net8.0 --force
-          cd GoldStraddleBot
-          dotnet add package cTrader.Automate
-
-      - name: Copy cBot Source
-        shell: pwsh
-        run: |
-          Copy-Item GoldStraddleBot.cs GoldStraddleBot/Class1.cs -Force
+      - name: Restore dependencies
+        run: dotnet restore GoldStraddleBot/GoldStraddleBot.csproj
 
       - name: Build
-        run: |
-          cd GoldStraddleBot
-          dotnet build -c Release
+        run: dotnet build GoldStraddleBot/GoldStraddleBot.csproj --configuration Release --no-restore
 
       - name: Upload DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Finished-cBot
-          path: GoldStraddleBot/bin/Release/net8.0/GoldStraddleBot.dll
+          name: GoldStraddleBot
+          path: GoldStraddleBot/bin/Release/net6.0/
