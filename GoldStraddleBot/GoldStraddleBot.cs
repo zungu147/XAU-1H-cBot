@@ -13,8 +13,10 @@ namespace cAlgo.Robots
         [Parameter("Volume (Lots)", DefaultValue = 0.01)]
         public double Volume { get; set; }
 
+
         [Parameter("Stop Loss (Pips)", DefaultValue = 100)]
         public double StopLoss { get; set; }
+
 
         [Parameter("Take Profit (Pips)", DefaultValue = 400)]
         public double TakeProfit { get; set; }
@@ -23,8 +25,10 @@ namespace cAlgo.Robots
         [Parameter("Trade Time 1 (HH:mm:ss)", DefaultValue = "09:30:00")]
         public string TradeTime1 { get; set; }
 
+
         [Parameter("Trade Time 2 (HH:mm:ss)", DefaultValue = "14:59:57")]
         public string TradeTime2 { get; set; }
+
 
         [Parameter("Trade Time 3 (HH:mm:ss)", DefaultValue = "21:00:00")]
         public string TradeTime3 { get; set; }
@@ -33,14 +37,18 @@ namespace cAlgo.Robots
         [Parameter("Trade Monday", DefaultValue = true)]
         public bool TradeMonday { get; set; }
 
+
         [Parameter("Trade Tuesday", DefaultValue = true)]
         public bool TradeTuesday { get; set; }
+
 
         [Parameter("Trade Wednesday", DefaultValue = true)]
         public bool TradeWednesday { get; set; }
 
+
         [Parameter("Trade Thursday", DefaultValue = true)]
         public bool TradeThursday { get; set; }
+
 
         [Parameter("Trade Friday", DefaultValue = true)]
         public bool TradeFriday { get; set; }
@@ -82,12 +90,13 @@ namespace cAlgo.Robots
 
         protected override void OnStart()
         {
-            LogInfo("=================================");
-            LogInfo("GoldStraddleBot v2.0-alpha3.1");
+            LogInfo("==============================");
+            LogInfo("GoldStraddleBot v2.0-alpha3.2");
             LogInfo($"Symbol: {SymbolName}");
-            LogInfo($"Server Time: {Server.Time}");
-            LogInfo($"Debug Mode: {DebugMode}");
-            LogInfo("=================================");
+            LogInfo($"Balance: {Account.Balance}");
+            LogInfo($"Equity: {Account.Equity}");
+            LogInfo($"Debug: {DebugMode}");
+            LogInfo("==============================");
 
 
             ValidateParameters();
@@ -119,7 +128,7 @@ namespace cAlgo.Robots
             CheckTradeTime(_time3, ref _executedTime3, "Time 3");
 
 
-            Debug($"Checking: {Server.Time:HH:mm:ss}");
+            Debug($"Checking {Server.Time:HH:mm:ss.fff}");
         }
 
         #endregion
@@ -137,35 +146,38 @@ namespace cAlgo.Robots
             TimeSpan current = Server.Time.TimeOfDay;
 
 
-            if (current >= tradeTime)
+            if (current >= tradeTime &&
+                current < tradeTime.Add(TimeSpan.FromSeconds(1)))
             {
-                LogInfo($"{name} triggered at {Server.Time:HH:mm:ss}");
+                executed = true;
 
 
-                bool success = ExecuteStraddle();
+                LogInfo($"{name} triggered");
 
 
-                if (success)
-                {
-                    executed = true;
-                }
+                ExecuteStraddle();
             }
         }
 
         #endregion
+                #region Trading
 
-
-
-        #region Trading
-
-        private bool ExecuteStraddle()
+        private void ExecuteStraddle()
         {
             Stopwatch timer = new Stopwatch();
 
 
-            double volume =
+            double volumeInUnits =
                 Symbol.QuantityToVolumeInUnits(Volume);
 
+
+            LogInfo("==============================");
+            LogInfo("STRADDLE EXECUTION STARTED");
+            LogInfo($"Time: {Server.Time:HH:mm:ss.fff}");
+            LogInfo($"Balance: {Account.Balance}");
+            LogInfo($"Equity: {Account.Equity}");
+            LogInfo($"Spread: {Symbol.Spread}");
+            LogInfo("==============================");
 
 
             timer.Start();
@@ -174,27 +186,27 @@ namespace cAlgo.Robots
             var buyResult = ExecuteMarketOrder(
                 TradeType.Buy,
                 SymbolName,
-                volume,
+                volumeInUnits,
                 "GoldStraddle_BUY",
                 StopLoss,
                 TakeProfit);
 
 
-            long buyMilliseconds = timer.ElapsedMilliseconds;
+            long buyTime = timer.ElapsedMilliseconds;
 
 
 
             var sellResult = ExecuteMarketOrder(
                 TradeType.Sell,
                 SymbolName,
-                volume,
+                volumeInUnits,
                 "GoldStraddle_SELL",
                 StopLoss,
                 TakeProfit);
 
 
-            long sellMilliseconds =
-                timer.ElapsedMilliseconds - buyMilliseconds;
+            long sellTime =
+                timer.ElapsedMilliseconds - buyTime;
 
 
             timer.Stop();
@@ -204,25 +216,19 @@ namespace cAlgo.Robots
             _totalTriggers++;
 
 
-
-            bool success = true;
-
-
-
             if (buyResult.IsSuccessful)
             {
                 _buySuccess++;
 
                 LogSuccess(
-                    $"BUY opened | Price: {buyResult.Position.EntryPrice}");
+                    $"BUY SUCCESS | Price: {buyResult.Position.EntryPrice} | ID: {buyResult.Position.Id}");
             }
             else
             {
-                success = false;
                 _failedOrders++;
 
                 LogError(
-                    $"BUY failed | {buyResult.Error}");
+                    $"BUY FAILED | {buyResult.Error}");
             }
 
 
@@ -232,25 +238,29 @@ namespace cAlgo.Robots
                 _sellSuccess++;
 
                 LogSuccess(
-                    $"SELL opened | Price: {sellResult.Position.EntryPrice}");
+                    $"SELL SUCCESS | Price: {sellResult.Position.EntryPrice} | ID: {sellResult.Position.Id}");
             }
             else
             {
-                success = false;
                 _failedOrders++;
 
                 LogError(
-                    $"SELL failed | {sellResult.Error}");
+                    $"SELL FAILED | {sellResult.Error}");
             }
 
 
 
             LogInfo(
-                $"Execution speed | BUY: {buyMilliseconds}ms | SELL: {sellMilliseconds}ms");
+                $"Execution speed | BUY: {buyTime}ms | SELL: {sellTime}ms");
 
 
-            return success;
+            LogInfo(
+                $"Daily Stats | Triggered: {_totalTriggers} | BUY: {_buySuccess} | SELL: {_sellSuccess} | Failed: {_failedOrders}");
+
+
+            LogInfo("==============================");
         }
+
 
         #endregion
 
@@ -295,7 +305,7 @@ namespace cAlgo.Robots
 
         private bool IsTradingDay()
         {
-            switch(Server.Time.DayOfWeek)
+            switch (Server.Time.DayOfWeek)
             {
                 case DayOfWeek.Monday:
                     return TradeMonday;
@@ -367,7 +377,7 @@ namespace cAlgo.Robots
 
         private void Debug(string message)
         {
-            if(DebugMode)
+            if (DebugMode)
                 Print("[DEBUG] " + message);
         }
 
