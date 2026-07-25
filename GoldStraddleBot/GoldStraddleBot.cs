@@ -15,10 +15,10 @@ namespace cAlgo.Robots
         [Parameter("Volume (Lots)", DefaultValue = 0.01)]
         public double Volume { get; set; }
 
-        [Parameter("Stop Loss (Pips)", DefaultValue = 100)]
+        [Parameter("Stop Loss (USD)", DefaultValue = 100)]
         public double StopLoss { get; set; }
 
-        [Parameter("Take Profit (Pips)", DefaultValue = 400)]
+        [Parameter("Take Profit (USD)", DefaultValue = 400)]
         public double TakeProfit { get; set; }
 
 
@@ -46,6 +46,12 @@ namespace cAlgo.Robots
 
         [Parameter("Trade Friday", DefaultValue = true)]
         public bool TradeFriday { get; set; }
+
+        [Parameter("Trade Saturday", DefaultValue = true)]
+        public bool TradeSaturday { get; set; }
+
+        [Parameter("Trade Sunday", DefaultValue = true)]
+        public bool TradeSunday { get; set; }
 
 
         [Parameter("Maximum Open Positions", DefaultValue = 6)]
@@ -177,6 +183,11 @@ namespace cAlgo.Robots
                 Symbol.QuantityToVolumeInUnits(Volume);
 
 
+            // Convert USD to pips for the API
+            double stopLossInPips = ConvertUsdToPips(StopLoss);
+            double takeProfitInPips = ConvertUsdToPips(TakeProfit);
+
+
             Stopwatch timer = Stopwatch.StartNew();
 
 
@@ -186,8 +197,8 @@ namespace cAlgo.Robots
                     SymbolName,
                     volumeUnits,
                     $"{BotVersion}_{tradeId}_BUY",
-                    StopLoss,
-                    TakeProfit);
+                    stopLossInPips,
+                    takeProfitInPips);
 
 
             double buyTime =
@@ -200,8 +211,8 @@ namespace cAlgo.Robots
                     SymbolName,
                     volumeUnits,
                     $"{BotVersion}_{tradeId}_SELL",
-                    StopLoss,
-                    TakeProfit);
+                    stopLossInPips,
+                    takeProfitInPips);
 
 
             double sellTime =
@@ -269,6 +280,24 @@ namespace cAlgo.Robots
 
 
 
+        #region USD to Pips Conversion
+
+        private double ConvertUsdToPips(double usdAmount)
+        {
+            // Calculate pips from USD amount
+            // Formula: Pips = USD Amount / (Lot Size * Point Value)
+            // For Gold (XAU/USD): 1 lot = 100 oz, 1 pip = 0.01, Point Value = 100 * 0.01 = 1 USD per pip per lot
+            
+            double pointValue = Symbol.PipValue * Volume;
+            double pips = usdAmount / pointValue;
+            
+            return pips;
+        }
+
+        #endregion
+
+
+
         #region Trading Days
 
         private bool IsTradingDay()
@@ -280,6 +309,8 @@ namespace cAlgo.Robots
                 DayOfWeek.Wednesday => TradeWednesday,
                 DayOfWeek.Thursday => TradeThursday,
                 DayOfWeek.Friday => TradeFriday,
+                DayOfWeek.Saturday => TradeSaturday,
+                DayOfWeek.Sunday => TradeSunday,
                 _ => false
             };
         }
@@ -320,8 +351,8 @@ namespace cAlgo.Robots
             Print(BotVersion);
             Print($"Symbol: {SymbolName}");
             Print($"Volume: {Volume}");
-            Print($"SL: {StopLoss}");
-            Print($"TP: {TakeProfit}");
+            Print($"SL: {StopLoss} USD");
+            Print($"TP: {TakeProfit} USD");
             Print($"Existing Positions: {Positions.Count}");
             Print("========================");
         }
