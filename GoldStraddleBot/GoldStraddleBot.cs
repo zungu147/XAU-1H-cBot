@@ -16,10 +16,10 @@ namespace cAlgo.Robots
         public double Volume { get; set; }
 
         [Parameter("Stop Loss (USD)", DefaultValue = 100)]
-        public double StopLoss { get; set; }
+        public double StopLossUSD { get; set; }
 
         [Parameter("Take Profit (USD)", DefaultValue = 400)]
-        public double TakeProfit { get; set; }
+        public double TakeProfitUSD { get; set; }
 
 
         [Parameter("Trade Time 1 (HH:mm:ss)", DefaultValue = "09:30:00")]
@@ -184,8 +184,8 @@ namespace cAlgo.Robots
 
 
             // Convert USD to pips for the API
-            double stopLossInPips = ConvertUsdToPips(StopLoss);
-            double takeProfitInPips = ConvertUsdToPips(TakeProfit);
+            double stopLossInPips = ConvertUsdToPips(StopLossUSD);
+            double takeProfitInPips = ConvertUsdToPips(TakeProfitUSD);
 
 
             Stopwatch timer = Stopwatch.StartNew();
@@ -284,14 +284,34 @@ namespace cAlgo.Robots
 
         private double ConvertUsdToPips(double usdAmount)
         {
-            // Calculate pips from USD amount
-            // Formula: Pips = USD Amount / (Lot Size * Point Value)
-            // For Gold (XAU/USD): 1 lot = 100 oz, 1 pip = 0.01, Point Value = 100 * 0.01 = 1 USD per pip per lot
-            
-            double pointValue = Symbol.PipValue * Volume;
-            double pips = usdAmount / pointValue;
-            
-            return pips;
+            if (usdAmount <= 0)
+                return 0;
+
+            if (Volume <= 0)
+                return 0;
+
+            /*
+                Deriv XAUUSD
+
+                0.01 lot
+                4021 -> 4031
+                = $10
+
+                Therefore:
+
+                Price Movement = USD / (Volume / 0.01)
+            */
+
+            double priceMovement = usdAmount / (Volume / 0.01);
+
+            double pips = priceMovement / Symbol.PipSize;
+
+            Debug(
+                $"USD={usdAmount} | " +
+                $"PriceMove={priceMovement:F2} | " +
+                $"Pips={pips:F2}");
+
+            return Math.Round(pips, 1);
         }
 
         #endregion
@@ -351,8 +371,8 @@ namespace cAlgo.Robots
             Print(BotVersion);
             Print($"Symbol: {SymbolName}");
             Print($"Volume: {Volume}");
-            Print($"SL: {StopLoss} USD");
-            Print($"TP: {TakeProfit} USD");
+            Print($"SL: ${StopLossUSD}");
+            Print($"TP: ${TakeProfitUSD}");
             Print($"Existing Positions: {Positions.Count}");
             Print("========================");
         }
