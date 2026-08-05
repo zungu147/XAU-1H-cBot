@@ -1,424 +1,392 @@
 using System;
-using System.Diagnostics;
+using System.Linq;
 using cAlgo.API;
+using cAlgo.API.Internals;
 
 namespace cAlgo.Robots
 {
-    [Robot(TimeZone = TimeZones.EAfricaStandardTime, AccessRights = AccessRights.None)]
-    public class GoldStraddleBot : Robot
+    [Robot(
+        TimeZone = TimeZones.EAfricaStandardTime,
+        AccessRights = AccessRights.None)]
+    public class GoldStraddleBotV3 : Robot
     {
-        private const string BotVersion = "v2.0-rc1";
-
-
-        #region Parameters
-
-        [Parameter("Volume (Lots)", DefaultValue = 0.01)]
-        public double Volume { get; set; }
-
-        [Parameter("Stop Loss (USD)", DefaultValue = 100)]
-        public double StopLossUSD { get; set; }
-
-        [Parameter("Take Profit (USD)", DefaultValue = 400)]
-        public double TakeProfitUSD { get; set; }
-
-
-        [Parameter("Trade Time 1 (HH:mm:ss)", DefaultValue = "09:30:00")]
-        public string TradeTime1 { get; set; }
-
-        [Parameter("Trade Time 2 (HH:mm:ss)", DefaultValue = "14:59:57")]
-        public string TradeTime2 { get; set; }
-
-        [Parameter("Trade Time 3 (HH:mm:ss)", DefaultValue = "21:00:00")]
-        public string TradeTime3 { get; set; }
-
-
-        [Parameter("Trade Monday", DefaultValue = true)]
-        public bool TradeMonday { get; set; }
-
-        [Parameter("Trade Tuesday", DefaultValue = true)]
-        public bool TradeTuesday { get; set; }
-
-        [Parameter("Trade Wednesday", DefaultValue = true)]
-        public bool TradeWednesday { get; set; }
-
-        [Parameter("Trade Thursday", DefaultValue = true)]
-        public bool TradeThursday { get; set; }
-
-        [Parameter("Trade Friday", DefaultValue = true)]
-        public bool TradeFriday { get; set; }
-
-        [Parameter("Trade Saturday", DefaultValue = true)]
-        public bool TradeSaturday { get; set; }
-
-        [Parameter("Trade Sunday", DefaultValue = true)]
-        public bool TradeSunday { get; set; }
-
-
-        [Parameter("Maximum Open Positions", DefaultValue = 6)]
-        public int MaximumOpenPositions { get; set; }
-
-
-        [Parameter("Debug Mode", DefaultValue = false)]
+        #region Slot 1 Parameters
+        
+        [Parameter("Slot 1 - Enable", Group = "Slot 1", DefaultValue = true)]
+        public bool Slot1Enable { get; set; }
+        
+        [Parameter("Slot 1 - Symbol", Group = "Slot 1", DefaultValue = "XAUUSD")]
+        public string Slot1SymbolName { get; set; }
+        
+        [Parameter("Slot 1 - Volume (Lots)", Group = "Slot 1", DefaultValue = 0.01, MinValue = 0.01)]
+        public double Slot1Volume { get; set; }
+        
+        [Parameter("Slot 1 - Stop Loss (USD)", Group = "Slot 1", DefaultValue = 100)]
+        public double Slot1StopLossUSD { get; set; }
+        
+        [Parameter("Slot 1 - Take Profit (USD)", Group = "Slot 1", DefaultValue = 400)]
+        public double Slot1TakeProfitUSD { get; set; }
+        
+        [Parameter("Slot 1 - Trade Time 1", Group = "Slot 1", DefaultValue = "09:30:00")]
+        public string Slot1TradeTime1 { get; set; }
+        
+        [Parameter("Slot 1 - Trade Time 2", Group = "Slot 1", DefaultValue = "")]
+        public string Slot1TradeTime2 { get; set; }
+        
+        [Parameter("Slot 1 - Monday", Group = "Slot 1 - Days", DefaultValue = true)]
+        public bool Slot1Monday { get; set; }
+        
+        [Parameter("Slot 1 - Tuesday", Group = "Slot 1 - Days", DefaultValue = true)]
+        public bool Slot1Tuesday { get; set; }
+        
+        [Parameter("Slot 1 - Wednesday", Group = "Slot 1 - Days", DefaultValue = true)]
+        public bool Slot1Wednesday { get; set; }
+        
+        [Parameter("Slot 1 - Thursday", Group = "Slot 1 - Days", DefaultValue = true)]
+        public bool Slot1Thursday { get; set; }
+        
+        [Parameter("Slot 1 - Friday", Group = "Slot 1 - Days", DefaultValue = true)]
+        public bool Slot1Friday { get; set; }
+        
+        [Parameter("Slot 1 - Saturday", Group = "Slot 1 - Days", DefaultValue = false)]
+        public bool Slot1Saturday { get; set; }
+        
+        [Parameter("Slot 1 - Sunday", Group = "Slot 1 - Days", DefaultValue = false)]
+        public bool Slot1Sunday { get; set; }
+        
+        #endregion
+        
+        #region Slot 2 Parameters
+        
+        [Parameter("Slot 2 - Enable", Group = "Slot 2", DefaultValue = true)]
+        public bool Slot2Enable { get; set; }
+        
+        [Parameter("Slot 2 - Symbol", Group = "Slot 2", DefaultValue = "US30")]
+        public string Slot2SymbolName { get; set; }
+        
+        [Parameter("Slot 2 - Volume (Lots)", Group = "Slot 2", DefaultValue = 0.01, MinValue = 0.01)]
+        public double Slot2Volume { get; set; }
+        
+        [Parameter("Slot 2 - Stop Loss (USD)", Group = "Slot 2", DefaultValue = 100)]
+        public double Slot2StopLossUSD { get; set; }
+        
+        [Parameter("Slot 2 - Take Profit (USD)", Group = "Slot 2", DefaultValue = 400)]
+        public double Slot2TakeProfitUSD { get; set; }
+        
+        [Parameter("Slot 2 - Trade Time 1", Group = "Slot 2", DefaultValue = "14:59:57")]
+        public string Slot2TradeTime1 { get; set; }
+        
+        [Parameter("Slot 2 - Trade Time 2", Group = "Slot 2", DefaultValue = "")]
+        public string Slot2TradeTime2 { get; set; }
+        
+        [Parameter("Slot 2 - Monday", Group = "Slot 2 - Days", DefaultValue = true)]
+        public bool Slot2Monday { get; set; }
+        
+        [Parameter("Slot 2 - Tuesday", Group = "Slot 2 - Days", DefaultValue = true)]
+        public bool Slot2Tuesday { get; set; }
+        
+        [Parameter("Slot 2 - Wednesday", Group = "Slot 2 - Days", DefaultValue = true)]
+        public bool Slot2Wednesday { get; set; }
+        
+        [Parameter("Slot 2 - Thursday", Group = "Slot 2 - Days", DefaultValue = true)]
+        public bool Slot2Thursday { get; set; }
+        
+        [Parameter("Slot 2 - Friday", Group = "Slot 2 - Days", DefaultValue = true)]
+        public bool Slot2Friday { get; set; }
+        
+        [Parameter("Slot 2 - Saturday", Group = "Slot 2 - Days", DefaultValue = false)]
+        public bool Slot2Saturday { get; set; }
+        
+        [Parameter("Slot 2 - Sunday", Group = "Slot 2 - Days", DefaultValue = false)]
+        public bool Slot2Sunday { get; set; }
+        
+        #endregion
+        
+        #region Global Parameters
+        
+        [Parameter("Debug Mode", Group = "Global", DefaultValue = true)]
         public bool DebugMode { get; set; }
-
+        
         #endregion
-
-
-
-        #region Variables
-
-        private TimeSpan _time1;
-        private TimeSpan _time2;
-        private TimeSpan _time3;
-
-
-        private bool _executedTime1;
-        private bool _executedTime2;
-        private bool _executedTime3;
-
-
-        private DateTime _currentDate;
-
-
-        private int _tradeNumber;
-
-
-        private int _totalExecutions;
-        private int _successfulBuys;
-        private int _successfulSells;
-        private int _failedOrders;
-
+        
+        #region Private Constants
+        
+        private const string Slot1Label = "GoldStraddleBot_V3_Slot1";
+        private const string Slot2Label = "GoldStraddleBot_V3_Slot2";
+        
         #endregion
-
-
-
-        #region Start
-
+        
+        #region Private Variables
+        
+        private DateTime _slot1LastTradeCandle;
+        private DateTime _slot2LastTradeCandle;
+        private Symbol _slot1Symbol;
+        private Symbol _slot2Symbol;
+        private TimeSpan _slot1Time1;
+        private TimeSpan _slot1Time2;
+        private TimeSpan _slot2Time1;
+        private TimeSpan _slot2Time2;
+        
+        #endregion
+        
+        #region Lifecycle Methods
+        
         protected override void OnStart()
         {
-            _currentDate = Server.Time.Date;
-
-            ValidateParameters();
-
-            Timer.Start(TimeSpan.FromMilliseconds(200));
-
-            PrintStartupReport();
-
-            LogInfo($"{BotVersion} Started");
-        }
-
-        #endregion
-
-
-
-        #region Timer
-
-        protected override void OnTimer()
-        {
-            ResetDaily();
-
-            if (!IsTradingDay())
-                return;
-
-
-            CheckTradeTime(_time1, ref _executedTime1, "Time 1");
-            CheckTradeTime(_time2, ref _executedTime2, "Time 2");
-            CheckTradeTime(_time3, ref _executedTime3, "Time 3");
-
-
-            Debug($"Time {Server.Time:HH:mm:ss.fff}");
-        }
-
-        #endregion
-
-
-
-        #region Scheduler
-
-        private void CheckTradeTime(TimeSpan tradeTime, ref bool executed, string name)
-        {
-            if (executed)
-                return;
-
-
-            TimeSpan now = Server.Time.TimeOfDay;
-
-
-            if (now >= tradeTime &&
-                now <= tradeTime.Add(TimeSpan.FromSeconds(30)))
+            // Initialize symbols
+            _slot1Symbol = Symbols.GetSymbol(Slot1SymbolName);
+            _slot2Symbol = Symbols.GetSymbol(Slot2SymbolName);
+            
+            // Parse trade times
+            _slot1Time1 = ParseTime(Slot1TradeTime1);
+            _slot1Time2 = ParseTime(Slot1TradeTime2);
+            _slot2Time1 = ParseTime(Slot2TradeTime1);
+            _slot2Time2 = ParseTime(Slot2TradeTime2);
+            
+            // Log startup message
+            LogDebug("GoldStraddleBot V3 Started");
+            LogDebug($"Slot1: {Slot1SymbolName} (Enabled: {Slot1Enable})");
+            LogDebug($"Slot2: {Slot2SymbolName} (Enabled: {Slot2Enable})");
+            
+            // Validate symbols
+            if (Slot1Enable && _slot1Symbol == null)
             {
-                executed = true;
-
-                ExecuteStraddle(name);
+                Print($"ERROR: Slot 1 symbol '{Slot1SymbolName}' not found!");
+                Slot1Enable = false;
+            }
+            
+            if (Slot2Enable && _slot2Symbol == null)
+            {
+                Print($"ERROR: Slot 2 symbol '{Slot2SymbolName}' not found!");
+                Slot2Enable = false;
             }
         }
-
-        #endregion
-
-
-
-        #region Trading
-
-        private void ExecuteStraddle(string trigger)
+        
+        protected override void OnTick()
         {
-            _tradeNumber++;
-
-
-            string tradeId =
-                $"GSB-{Server.Time:yyyyMMdd}-{_tradeNumber:D3}";
-
-
-            LogInfo($"Trade ID: {tradeId}");
-            LogInfo($"{trigger} triggered");
-
-
-            if (Positions.Count >= MaximumOpenPositions)
+            if (Slot1Enable && _slot1Symbol != null)
             {
-                LogError("Maximum open positions reached");
-                return;
+                CheckSlot(Slot1Label, _slot1Symbol, Slot1Volume, Slot1StopLossUSD, Slot1TakeProfitUSD, 
+                         ref _slot1LastTradeCandle, _slot1Time1, _slot1Time2,
+                         Slot1Monday, Slot1Tuesday, Slot1Wednesday, Slot1Thursday, 
+                         Slot1Friday, Slot1Saturday, Slot1Sunday);
             }
-
-
-            double volumeUnits =
-                Symbol.QuantityToVolumeInUnits(Volume);
-
-
-            // Convert USD to pips for the API
-            double stopLossInPips = ConvertUsdToPips(StopLossUSD);
-            double takeProfitInPips = ConvertUsdToPips(TakeProfitUSD);
-
-
-            Stopwatch timer = Stopwatch.StartNew();
-
-
-            var buy =
-                ExecuteMarketOrder(
+            
+            if (Slot2Enable && _slot2Symbol != null)
+            {
+                CheckSlot(Slot2Label, _slot2Symbol, Slot2Volume, Slot2StopLossUSD, Slot2TakeProfitUSD,
+                         ref _slot2LastTradeCandle, _slot2Time1, _slot2Time2,
+                         Slot2Monday, Slot2Tuesday, Slot2Wednesday, Slot2Thursday,
+                         Slot2Friday, Slot2Saturday, Slot2Sunday);
+            }
+        }
+        
+        #endregion
+        
+        #region Core Logic
+        
+        private void CheckSlot(string label, Symbol symbol, double volume, double stopLossUSD, double takeProfitUSD,
+                              ref DateTime lastTradeCandle, TimeSpan time1, TimeSpan time2,
+                              bool monday, bool tuesday, bool wednesday, bool thursday, 
+                              bool friday, bool saturday, bool sunday)
+        {
+            try
+            {
+                // Check if today is a valid trading day
+                if (!IsValidTradingDay(monday, tuesday, wednesday, thursday, friday, saturday, sunday))
+                {
+                    LogDebug($"{label} - Skipping: Not a valid trading day");
+                    return;
+                }
+                
+                // Check for pending orders
+                if (HasPendingOrders(label))
+                {
+                    LogDebug($"{label} - Skipping: Already has pending orders");
+                    return;
+                }
+                
+                // Get current time
+                DateTime currentTime = Server.Time;
+                TimeSpan currentTimeOfDay = currentTime.TimeOfDay;
+                DateTime currentCandle = GetCurrentCandleStart(symbol);
+                
+                // Check if we already traded in this candle
+                if (lastTradeCandle == currentCandle)
+                {
+                    LogDebug($"{label} - Skipping: Already traded in current candle");
+                    return;
+                }
+                
+                // Check time1
+                if (time1 != TimeSpan.Zero && IsTimeMatch(currentTimeOfDay, time1))
+                {
+                    LogDebug($"{label} - Trade Time 1 detected at {time1}");
+                    OpenStraddle(symbol, volume, stopLossUSD, takeProfitUSD, label);
+                    lastTradeCandle = currentCandle;
+                    return;
+                }
+                
+                // Check time2
+                if (time2 != TimeSpan.Zero && IsTimeMatch(currentTimeOfDay, time2))
+                {
+                    LogDebug($"{label} - Trade Time 2 detected at {time2}");
+                    OpenStraddle(symbol, volume, stopLossUSD, takeProfitUSD, label);
+                    lastTradeCandle = currentCandle;
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Print($"ERROR in {label}: {ex.Message}");
+            }
+        }
+        
+        private void OpenStraddle(Symbol symbol, double volumeLots, double stopLossUSD, double takeProfitUSD, string label)
+        {
+            try
+            {
+                // Convert USD to pips
+                double stopLossPips = ConvertUsdToPips(symbol, volumeLots, stopLossUSD);
+                double takeProfitPips = ConvertUsdToPips(symbol, volumeLots, takeProfitUSD);
+                
+                LogDebug($"{label} - Opening Straddle on {symbol.Name}");
+                LogDebug($"{label} - Volume: {volumeLots} lots");
+                LogDebug($"{label} - SL: ${stopLossUSD} → {stopLossPips} pips");
+                LogDebug($"{label} - TP: ${takeProfitUSD} → {takeProfitPips} pips");
+                
+                // Open BUY order
+                TradeResult buyResult = ExecuteMarketOrder(
                     TradeType.Buy,
-                    SymbolName,
-                    volumeUnits,
-                    $"{BotVersion}_{tradeId}_BUY",
-                    stopLossInPips,
-                    takeProfitInPips);
-
-
-            double buyTime =
-                timer.Elapsed.TotalMilliseconds;
-
-
-            var sell =
-                ExecuteMarketOrder(
+                    symbol.Name,
+                    volumeLots,
+                    $"{label}_BUY",
+                    stopLossPips,
+                    takeProfitPips);
+                
+                if (buyResult.IsSuccessful)
+                {
+                    LogDebug($"{label} - BUY order successful. ID: {buyResult.Position.Id}");
+                }
+                else
+                {
+                    Print($"ERROR: {label} - BUY order failed: {buyResult.Error}");
+                }
+                
+                // Open SELL order
+                TradeResult sellResult = ExecuteMarketOrder(
                     TradeType.Sell,
-                    SymbolName,
-                    volumeUnits,
-                    $"{BotVersion}_{tradeId}_SELL",
-                    stopLossInPips,
-                    takeProfitInPips);
-
-
-            double sellTime =
-                timer.Elapsed.TotalMilliseconds;
-
-
-            timer.Stop();
-
-
-            double gap = sellTime - buyTime;
-
-
-            _totalExecutions++;
-
-
-            if (buy.IsSuccessful)
-            {
-                _successfulBuys++;
-
-                LogSuccess(
-                    $"{tradeId} BUY opened | Price {buy.Position.EntryPrice}");
+                    symbol.Name,
+                    volumeLots,
+                    $"{label}_SELL",
+                    stopLossPips,
+                    takeProfitPips);
+                
+                if (sellResult.IsSuccessful)
+                {
+                    LogDebug($"{label} - SELL order successful. ID: {sellResult.Position.Id}");
+                }
+                else
+                {
+                    Print($"ERROR: {label} - SELL order failed: {sellResult.Error}");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                _failedOrders++;
-
-                LogError($"BUY failed: {buy.Error}");
+                Print($"ERROR: {label} - Failed to open straddle: {ex.Message}");
             }
-
-
-            if (sell.IsSuccessful)
+        }
+        
+        #endregion
+        
+        #region Helper Methods
+        
+        private double ConvertUsdToPips(Symbol symbol, double volumeLots, double usdAmount)
+        {
+            try
             {
-                _successfulSells++;
-
-                LogSuccess(
-                    $"{tradeId} SELL opened | Price {sell.Position.EntryPrice}");
+                // Get pip value in account currency
+                double pipValue = symbol.PipValue * volumeLots;
+                
+                if (pipValue == 0)
+                {
+                    Print($"WARNING: Pip value is zero for {symbol.Name}, using default value");
+                    pipValue = 1.0;
+                }
+                
+                // Calculate pips needed to achieve the USD amount
+                double pips = usdAmount / pipValue;
+                
+                // Ensure minimum pip distance
+                double minPips = symbol.PipSize * 10; // 10 pips minimum
+                
+                return Math.Max(pips, minPips);
             }
-            else
+            catch (Exception ex)
             {
-                _failedOrders++;
-
-                LogError($"SELL failed: {sell.Error}");
+                Print($"ERROR: Failed to convert USD to pips: {ex.Message}");
+                return 100; // Default fallback
             }
-
-
-            LogInfo($"Execution gap: {gap:F2} ms");
         }
-
-        #endregion
-
-
-
-        #region Validation
-
-        private void ValidateParameters()
+        
+        private bool IsValidTradingDay(bool monday, bool tuesday, bool wednesday, bool thursday, 
+                                       bool friday, bool saturday, bool sunday)
         {
-            TimeSpan.TryParse(TradeTime1, out _time1);
-            TimeSpan.TryParse(TradeTime2, out _time2);
-            TimeSpan.TryParse(TradeTime3, out _time3);
-
-            LogInfo("Parameters validated");
-        }
-
-        #endregion
-
-
-
-        #region USD to Pips Conversion
-
-        private double ConvertUsdToPips(double usdAmount)
-        {
-            if (usdAmount <= 0)
-                return 0;
-
-            if (Volume <= 0)
-                return 0;
-
-            /*
-                Deriv XAUUSD
-
-                0.01 lot
-                4021 -> 4031
-                = $10
-
-                Therefore:
-
-                Price Movement = USD / (Volume / 0.01)
-            */
-
-            double priceMovement = usdAmount / (Volume / 0.01);
-
-            double pips = priceMovement / Symbol.PipSize;
-
-            Debug(
-                $"USD={usdAmount} | " +
-                $"PriceMove={priceMovement:F2} | " +
-                $"Pips={pips:F2}");
-
-            return Math.Round(pips, 1);
-        }
-
-        #endregion
-
-
-
-        #region Trading Days
-
-        private bool IsTradingDay()
-        {
-            return Server.Time.DayOfWeek switch
+            DayOfWeek currentDay = Server.Time.DayOfWeek;
+            
+            switch (currentDay)
             {
-                DayOfWeek.Monday => TradeMonday,
-                DayOfWeek.Tuesday => TradeTuesday,
-                DayOfWeek.Wednesday => TradeWednesday,
-                DayOfWeek.Thursday => TradeThursday,
-                DayOfWeek.Friday => TradeFriday,
-                DayOfWeek.Saturday => TradeSaturday,
-                DayOfWeek.Sunday => TradeSunday,
-                _ => false
-            };
+                case DayOfWeek.Monday: return monday;
+                case DayOfWeek.Tuesday: return tuesday;
+                case DayOfWeek.Wednesday: return wednesday;
+                case DayOfWeek.Thursday: return thursday;
+                case DayOfWeek.Friday: return friday;
+                case DayOfWeek.Saturday: return saturday;
+                case DayOfWeek.Sunday: return sunday;
+                default: return false;
+            }
         }
-
-        #endregion
-
-
-
-        #region Reset
-
-        private void ResetDaily()
+        
+        private bool IsTimeMatch(TimeSpan currentTime, TimeSpan targetTime)
         {
-            if (_currentDate == Server.Time.Date)
-                return;
-
-
-            PrintDailySummary();
-
-
-            _currentDate = Server.Time.Date;
-
-            _executedTime1 = false;
-            _executedTime2 = false;
-            _executedTime3 = false;
-
-            _tradeNumber = 0;
+            // Allow a small window (5 seconds) for tick precision
+            TimeSpan difference = currentTime - targetTime;
+            return Math.Abs(difference.TotalSeconds) < 5;
         }
-
-        #endregion
-
-
-
-        #region Reporting
-
-        private void PrintStartupReport()
+        
+        private TimeSpan ParseTime(string timeString)
         {
-            Print("========================");
-            Print(BotVersion);
-            Print($"Symbol: {SymbolName}");
-            Print($"Volume: {Volume}");
-            Print($"SL: ${StopLossUSD}");
-            Print($"TP: ${TakeProfitUSD}");
-            Print($"Existing Positions: {Positions.Count}");
-            Print("========================");
+            if (string.IsNullOrWhiteSpace(timeString))
+                return TimeSpan.Zero;
+                
+            if (TimeSpan.TryParse(timeString, out TimeSpan result))
+                return result;
+                
+            Print($"WARNING: Invalid time format '{timeString}'. Use HH:mm:ss");
+            return TimeSpan.Zero;
         }
-
-
-        private void PrintDailySummary()
+        
+        private DateTime GetCurrentCandleStart(Symbol symbol)
         {
-            Print("========================");
-            Print("DAILY SUMMARY");
-            Print($"Executions: {_totalExecutions}");
-            Print($"BUY: {_successfulBuys}");
-            Print($"SELL: {_successfulSells}");
-            Print($"Errors: {_failedOrders}");
-            Print("========================");
+            // Get the start of the current 1-hour candle
+            DateTime now = Server.Time;
+            return new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
         }
-
-        #endregion
-
-
-
-        #region Logging
-
-        private void LogInfo(string msg)
+        
+        private bool HasPendingOrders(string label)
         {
-            Print("[INFO] " + msg);
+            // Check if there are any open positions with this label
+            return Positions.Any(p => p.Label.StartsWith(label) && p.State == TradeState.Active);
         }
-
-
-        private void LogSuccess(string msg)
-        {
-            Print("[SUCCESS] " + msg);
-        }
-
-
-        private void LogError(string msg)
-        {
-            Print("[ERROR] " + msg);
-        }
-
-
-        private void Debug(string msg)
+        
+        private void LogDebug(string message)
         {
             if (DebugMode)
-                Print("[DEBUG] " + msg);
+            {
+                Print($"[DEBUG] {message}");
+            }
         }
-
+        
         #endregion
     }
 }
